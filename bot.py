@@ -1,5 +1,6 @@
 from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters import threading
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters 
+import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 class Handler(BaseHTTPRequestHandler):
