@@ -13,7 +13,7 @@ import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 # =========================
-# Render keep-alive server
+# Render Server (IMPORTANT)
 # =========================
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -29,178 +29,157 @@ def run_server():
 threading.Thread(target=run_server, daemon=True).start()
 
 # =========================
-# Bot Token
+# BOT CONFIG
 # =========================
 TOKEN = "8299086246:AAHgf4rqQMvPiOPAHymOH475vEAeJ-bNspU"
+ADMIN_ID = 8260499617
 
 # =========================
-# Conversation States
+# STATES
 # =========================
 NAME, AGE, GENDER, CITY, EXPERIENCE, TIME, CONFIRM = range(7)
 
 # =========================
-# Start Command
+# START
 # =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    welcome_text = (
-        "👋 Welcome to TalkMitra Bot\n\n"
-        "Yaha aapse kuch basic details alag alag puchi jayengi.\n"
-        "Please sahi information dijiye.\n\n"
-        "Sabse pehle,\n"
+    await update.message.reply_text(
+        "👋 Welcome to TalkMitra\n\n"
+        "Process start karne ke liye kuch details deni hogi.\n\n"
         "📝 Aapka naam kya hai?"
     )
-    await update.message.reply_text(welcome_text)
     return NAME
 
 # =========================
-# Name
+# NAME
 # =========================
 async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["name"] = update.message.text.strip()
+    context.user_data["name"] = update.message.text
     await update.message.reply_text("🎂 Aapki age kya hai?")
     return AGE
 
 # =========================
-# Age
+# AGE
 # =========================
 async def get_age(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    age = update.message.text.strip()
+    context.user_data["age"] = update.message.text
 
-    if not age.isdigit():
-        await update.message.reply_text("⚠️ Please sirf number me age likhiye.\n\nExample: 21")
-        return AGE
-
-    context.user_data["age"] = age
-
-    gender_keyboard = [["Male", "Female"], ["Other"]]
+    keyboard = [["Male", "Female"], ["Other"]]
     await update.message.reply_text(
-        "👤 Aapka gender select kijiye:",
-        reply_markup=ReplyKeyboardMarkup(gender_keyboard, resize_keyboard=True, one_time_keyboard=True),
+        "👤 Aapka gender select kare:",
+        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True),
     )
     return GENDER
 
 # =========================
-# Gender
+# GENDER
 # =========================
 async def get_gender(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["gender"] = update.message.text.strip()
-    await update.message.reply_text(
-        "🏙️ Aap kis city se ho?",
-        reply_markup=ReplyKeyboardRemove()
-    )
+    context.user_data["gender"] = update.message.text
+    await update.message.reply_text("🏙️ Aap kis city se ho?", reply_markup=ReplyKeyboardRemove())
     return CITY
 
 # =========================
-# City
+# CITY
 # =========================
 async def get_city(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["city"] = update.message.text.strip()
+    context.user_data["city"] = update.message.text
 
-    exp_keyboard = [["Yes", "No"]]
+    keyboard = [["Yes", "No"]]
     await update.message.reply_text(
-        "💬 Kya aapko chatting ya calling ka experience hai?",
-        reply_markup=ReplyKeyboardMarkup(exp_keyboard, resize_keyboard=True, one_time_keyboard=True),
+        "💬 Kya aapko chatting/calling ka experience hai?",
+        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True),
     )
     return EXPERIENCE
 
 # =========================
-# Experience
+# EXPERIENCE
 # =========================
 async def get_experience(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["experience"] = update.message.text.strip()
+    context.user_data["experience"] = update.message.text
 
-    time_keyboard = [["1 Hour", "2 Hours"], ["3 Hours", "4+ Hours"]]
+    keyboard = [["1 Hour", "2 Hours"], ["3 Hours", "4+ Hours"]]
     await update.message.reply_text(
         "⏰ Aap daily kitna time de sakte ho?",
-        reply_markup=ReplyKeyboardMarkup(time_keyboard, resize_keyboard=True, one_time_keyboard=True),
+        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True),
     )
     return TIME
 
 # =========================
-# Time + Earning Details
+# TIME + EARNING
 # =========================
 async def get_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["time"] = update.message.text.strip()
+    context.user_data["time"] = update.message.text
 
-    earning_text = (
+    await update.message.reply_text(
         "💸 Earning Details\n\n"
-        "💬 Chat earning: ₹5 per minute\n"
-        "📞 Voice call earning: ₹10 per minute\n\n"
-        "📌 Example 1:\n"
+        "💬 Chat: ₹5 per minute\n"
+        "📞 Voice Call: ₹10 per minute\n\n"
+        "📌 Example:\n"
         "10 min chat = ₹50\n"
-        "10 min voice call = ₹100\n"
+        "10 min call = ₹100\n"
         "Total = ₹150\n\n"
-        "📌 Example 2:\n"
-        "20 min chat = ₹100\n"
-        "15 min voice call = ₹150\n"
-        "Total = ₹250\n\n"
-        "📌 Example 3:\n"
-        "30 min chat = ₹150\n"
-        "20 min voice call = ₹200\n"
-        "Total = ₹350\n\n"
-        "📅 Monthly Example:\n"
-        "Daily ₹150 = ₹4500/month\n"
-        "Daily ₹250 = ₹7500/month\n"
-        "Daily ₹350 = ₹10500/month\n\n"
-        "Note: Earnings depend on your activity, availability, and user engagement.\n\n"
-        "✅ Kya aap process continue karna chahte ho?"
+        "📅 Monthly potential:\n"
+        "₹150/day = ₹4500\n"
+        "₹250/day = ₹7500\n"
+        "₹350/day = ₹10500\n\n"
+        "⚠️ Limited slots only\n\n"
+        "✅ Continue karna chahte ho?"
     )
 
-    confirm_keyboard = [["Yes, Continue", "No"]]
+    keyboard = [["Yes", "No"]]
     await update.message.reply_text(
-        earning_text,
-        reply_markup=ReplyKeyboardMarkup(confirm_keyboard, resize_keyboard=True, one_time_keyboard=True),
+        "Select option:",
+        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True),
     )
     return CONFIRM
 
 # =========================
-# Final Confirm
+# FINAL
 # =========================
 async def confirm_process(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    answer = update.message.text.strip()
-    context.user_data["confirm"] = answer
-
-    if answer.lower() == "no":
-        await update.message.reply_text(
-            "ठीक hai 👍\nAgar future me interest ho to dubara /start bhej sakte ho.",
-            reply_markup=ReplyKeyboardRemove()
-        )
+    if update.message.text.lower() == "no":
+        await update.message.reply_text("Thik hai 👍", reply_markup=ReplyKeyboardRemove())
         return ConversationHandler.END
 
-    summary = (
-        "✅ Thank you for submitting your details.\n\n"
-        "📋 Your Details:\n"
-        f"Name: {context.user_data.get('name', '')}\n"
-        f"Age: {context.user_data.get('age', '')}\n"
-        f"Gender: {context.user_data.get('gender', '')}\n"
-        f"City: {context.user_data.get('city', '')}\n"
-        f"Experience: {context.user_data.get('experience', '')}\n"
-        f"Available Time: {context.user_data.get('time', '')}\n\n"
-        "Our team will review your response.\n\n"
-        "If you are selected for the next step, you will receive joining/process details soon.\n\n"
-        "📩 Please stay active and reply properly during the process."
-    )
-
-    await update.message.reply_text(summary, reply_markup=ReplyKeyboardRemove())
-    return ConversationHandler.END
-
-# =========================
-# Cancel Command
-# =========================
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # USER SUMMARY
     await update.message.reply_text(
-        "❌ Process cancelled.\nAgar dubara start karna ho to /start bhejo.",
+        "✅ Thank you! Aapka profile review me hai.\n\n"
+        "Agar select hue to next step bheja jayega.",
         reply_markup=ReplyKeyboardRemove()
     )
+
+    # ADMIN MESSAGE
+    await context.bot.send_message(
+        chat_id=ADMIN_ID,
+        text=(
+            "🚀 New Lead\n\n"
+            f"Name: {context.user_data.get('name')}\n"
+            f"Age: {context.user_data.get('age')}\n"
+            f"Gender: {context.user_data.get('gender')}\n"
+            f"City: {context.user_data.get('city')}\n"
+            f"Experience: {context.user_data.get('experience')}\n"
+            f"Time: {context.user_data.get('time')}\n"
+            f"User ID: {update.effective_user.id}"
+        )
+    )
+
     return ConversationHandler.END
 
 # =========================
-# Main Function
+# CANCEL
+# =========================
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Cancelled ❌", reply_markup=ReplyKeyboardRemove())
+    return ConversationHandler.END
+
+# =========================
+# MAIN
 # =========================
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
-    conv_handler = ConversationHandler(
+    conv = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
             NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name)],
@@ -214,9 +193,9 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
-    app.add_handler(conv_handler)
+    app.add_handler(conv)
 
-    print("Bot started successfully...")
+    print("Bot running...")
     app.run_polling()
 
 if __name__ == "__main__":
