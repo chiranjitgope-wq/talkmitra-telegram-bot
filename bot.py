@@ -1,124 +1,222 @@
-from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters 
+from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    ConversationHandler,
+    ContextTypes,
+    filters,
+)
+
+import os
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
+# =========================
+# Render keep-alive server
+# =========================
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b'Bot is running')
+        self.wfile.write(b"Bot is running")
 
 def run_server():
-    server = HTTPServer(('0.0.0.0', 10000), Handler)
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), Handler)
     server.serve_forever()
 
-threading.Thread(target=run_server).start()
+threading.Thread(target=run_server, daemon=True).start()
 
+# =========================
+# Bot Token
+# =========================
 TOKEN = "8299086246:AAHgf4rqQMvPiOPAHymOH475vEAeJ-bNspU"
 
-keyboard = [
-    ["Join as Host", "How it Works"],
-    ["Earning Details", "Support"]
-]
-reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+# =========================
+# Conversation States
+# =========================
+NAME, AGE, GENDER, CITY, EXPERIENCE, TIME, CONFIRM = range(7)
 
+# =========================
+# Start Command
+# =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    welcome_text = (
+        "👋 Welcome to TalkMitra Bot\n\n"
+        "Yaha aapse kuch basic details alag alag puchi jayengi.\n"
+        "Please sahi information dijiye.\n\n"
+        "Sabse pehle,\n"
+        "📝 Aapka naam kya hai?"
+    )
+    await update.message.reply_text(welcome_text)
+    return NAME
+
+# =========================
+# Name
+# =========================
+async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["name"] = update.message.text.strip()
+    await update.message.reply_text("🎂 Aapki age kya hai?")
+    return AGE
+
+# =========================
+# Age
+# =========================
+async def get_age(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    age = update.message.text.strip()
+
+    if not age.isdigit():
+        await update.message.reply_text("⚠️ Please sirf number me age likhiye.\n\nExample: 21")
+        return AGE
+
+    context.user_data["age"] = age
+
+    gender_keyboard = [["Male", "Female"], ["Other"]]
     await update.message.reply_text(
-        "Welcome to TalkMitra 💬\n\n"
-        "TalkMitra ek chat & voice call based platform hai jahan aap host banne ke liye apply kar sakte ho.\n\n"
-        "Yahan aap:\n"
-        "• Host apply kar sakte ho\n"
-        "• Process samajh sakte ho\n"
-        "• Basic earning details dekh sakte ho\n"
-        "• Support le sakte ho\n\n"
-        "Neeche se option choose karo.",
-        reply_markup=reply_markup
+        "👤 Aapka gender select kijiye:",
+        reply_markup=ReplyKeyboardMarkup(gender_keyboard, resize_keyboard=True, one_time_keyboard=True),
+    )
+    return GENDER
+
+# =========================
+# Gender
+# =========================
+async def get_gender(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["gender"] = update.message.text.strip()
+    await update.message.reply_text(
+        "🏙️ Aap kis city se ho?",
+        reply_markup=ReplyKeyboardRemove()
+    )
+    return CITY
+
+# =========================
+# City
+# =========================
+async def get_city(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["city"] = update.message.text.strip()
+
+    exp_keyboard = [["Yes", "No"]]
+    await update.message.reply_text(
+        "💬 Kya aapko chatting ya calling ka experience hai?",
+        reply_markup=ReplyKeyboardMarkup(exp_keyboard, resize_keyboard=True, one_time_keyboard=True),
+    )
+    return EXPERIENCE
+
+# =========================
+# Experience
+# =========================
+async def get_experience(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["experience"] = update.message.text.strip()
+
+    time_keyboard = [["1 Hour", "2 Hours"], ["3 Hours", "4+ Hours"]]
+    await update.message.reply_text(
+        "⏰ Aap daily kitna time de sakte ho?",
+        reply_markup=ReplyKeyboardMarkup(time_keyboard, resize_keyboard=True, one_time_keyboard=True),
+    )
+    return TIME
+
+# =========================
+# Time + Earning Details
+# =========================
+async def get_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["time"] = update.message.text.strip()
+
+    earning_text = (
+        "💸 Earning Details\n\n"
+        "💬 Chat earning: ₹5 per minute\n"
+        "📞 Voice call earning: ₹10 per minute\n\n"
+        "📌 Example 1:\n"
+        "10 min chat = ₹50\n"
+        "10 min voice call = ₹100\n"
+        "Total = ₹150\n\n"
+        "📌 Example 2:\n"
+        "20 min chat = ₹100\n"
+        "15 min voice call = ₹150\n"
+        "Total = ₹250\n\n"
+        "📌 Example 3:\n"
+        "30 min chat = ₹150\n"
+        "20 min voice call = ₹200\n"
+        "Total = ₹350\n\n"
+        "📅 Monthly Example:\n"
+        "Daily ₹150 = ₹4500/month\n"
+        "Daily ₹250 = ₹7500/month\n"
+        "Daily ₹350 = ₹10500/month\n\n"
+        "Note: Earnings depend on your activity, availability, and user engagement.\n\n"
+        "✅ Kya aap process continue karna chahte ho?"
     )
 
-async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.lower()
-
-    if text == "join as host":
-        await update.message.reply_text(
-            "Great choice 👍\n\n"
-            "Host banne ke liye apni basic details is format me bhejo:\n\n"
-            "Name:\n"
-            "Age:\n"
-            "City:\n"
-            "Language:\n\n"
-            "Example:\n"
-            "Name: Rahul Das\n"
-            "Age: 23\n"
-            "City: Agartala\n"
-            "Language: Hindi, Bengali\n\n"
-            "Please genuine details hi share karein."
-        )
-
-    elif text == "how it works":
-        await update.message.reply_text(
-            "TalkMitra ka process simple hai:\n\n"
-            "1. Aap host ke liye apply karte ho\n"
-            "2. Hum aapka profile review karte hain\n"
-            "3. Shortlisted users ko next step share kiya jata hai\n\n"
-            "Work Type: Chat + Voice Call\n"
-            "Timing: Flexible"
-        )
-
-    elif text == "earning details":
-        await update.message.reply_text(
-            "Earning depend karti hai:\n\n"
-            "• Aapki activity par\n"
-            "• Time spent par\n"
-            "• User interaction par\n\n"
-            "Detailed earning information shortlisted users ko next step me di jati hai."
-        )
-
-    elif text == "support":
-        await update.message.reply_text(
-            "Kisi bhi help ke liye contact kare:\n\n"
-            "@talkmitra_support"
-        )
-
-    else:
-        await update.message.reply_text(
-            "Please neeche diye gaye buttons me se koi option choose karo."
-        )
-
-async def join(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    confirm_keyboard = [["Yes, Continue", "No"]]
     await update.message.reply_text(
-        "Host apply karne ke liye apni details bhejo:\n\n"
-        "Name:\n"
-        "Age:\n"
-        "City:\n"
-        "Language:"
+        earning_text,
+        reply_markup=ReplyKeyboardMarkup(confirm_keyboard, resize_keyboard=True, one_time_keyboard=True),
+    )
+    return CONFIRM
+
+# =========================
+# Final Confirm
+# =========================
+async def confirm_process(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    answer = update.message.text.strip()
+    context.user_data["confirm"] = answer
+
+    if answer.lower() == "no":
+        await update.message.reply_text(
+            "ठीक hai 👍\nAgar future me interest ho to dubara /start bhej sakte ho.",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return ConversationHandler.END
+
+    summary = (
+        "✅ Thank you for submitting your details.\n\n"
+        "📋 Your Details:\n"
+        f"Name: {context.user_data.get('name', '')}\n"
+        f"Age: {context.user_data.get('age', '')}\n"
+        f"Gender: {context.user_data.get('gender', '')}\n"
+        f"City: {context.user_data.get('city', '')}\n"
+        f"Experience: {context.user_data.get('experience', '')}\n"
+        f"Available Time: {context.user_data.get('time', '')}\n\n"
+        "Our team will review your response.\n\n"
+        "If you are selected for the next step, you will receive joining/process details soon.\n\n"
+        "📩 Please stay active and reply properly during the process."
     )
 
-async def details(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "TalkMitra ek chat & voice call based platform hai jahan interested users host banne ke liye apply kar sakte hain."
-    )
+    await update.message.reply_text(summary, reply_markup=ReplyKeyboardRemove())
+    return ConversationHandler.END
 
-async def earnings(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# =========================
+# Cancel Command
+# =========================
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Earning activity, time spent aur engagement par depend karti hai."
+        "❌ Process cancelled.\nAgar dubara start karna ho to /start bhejo.",
+        reply_markup=ReplyKeyboardRemove()
     )
+    return ConversationHandler.END
 
-async def support(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Support: @talkmitra_support"
-    )
-
+# =========================
+# Main Function
+# =========================
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("join", join))
-    app.add_handler(CommandHandler("details", details))
-    app.add_handler(CommandHandler("earnings", earnings))
-    app.add_handler(CommandHandler("support", support))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("start", start)],
+        states={
+            NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name)],
+            AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_age)],
+            GENDER: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_gender)],
+            CITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_city)],
+            EXPERIENCE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_experience)],
+            TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_time)],
+            CONFIRM: [MessageHandler(filters.TEXT & ~filters.COMMAND, confirm_process)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
 
+    app.add_handler(conv_handler)
+
+    print("Bot started successfully...")
     app.run_polling()
 
 if __name__ == "__main__":
