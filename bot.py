@@ -1,183 +1,231 @@
+import json
+import os
+import logging
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
-    ApplicationBuilder,
+    Application,
     CommandHandler,
     MessageHandler,
-    ConversationHandler,
-    ContextTypes,
     filters,
+    ContextTypes,
+    ConversationHandler,
 )
 
-import os
-import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
-
 # =========================
-# Render Server (IMPORTANT)
+# SETTINGS
 # =========================
-class Handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Bot is running")
-
-def run_server():
-    port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(("0.0.0.0", port), Handler)
-    server.serve_forever()
-
-threading.Thread(target=run_server, daemon=True).start()
-
-# =========================
-# BOT CONFIG
-# =========================
-TOKEN = "8299086246:AAHgf4rqQMvPiOPAHymOH475vEAeJ-bNspU"
+BOT_TOKEN = "8299086246:AAHgf4rqQMvPiOPAHymOH475vEAeJ-bNspU"
 ADMIN_ID = 8260499617
+LEADS_FILE = "leads.json"
+
+# =========================
+# MESSAGES
+# =========================
+PAYMENT_MESSAGE = (
+    "✅ Your profile has been reviewed\n\n"
+    "🎉 You are selected for the next process\n\n"
+    "To continue, complete your registration now.\n\n"
+    "💰 Registration Amount: ₹499\n\n"
+    "🔗 Payment Link:\n"
+    "https://payments.cashfree.com/forms/join-talkmitra\n\n"
+    "📌 After payment, send screenshot here\n\n"
+    "OR\n\n"
+    "💬 Only serious candidates can DM:\n"
+    "👉 @talkmitra_support\n\n"
+    "⚠️ Limited slots available, complete your process today."
+)
+
+SELECT_MESSAGE = (
+    "🎉 Congratulations!\n\n"
+    "Your profile has been selected for the next step.\n"
+    "Please stay active, further instructions coming soon."
+)
+
+REMINDER_MESSAGE = (
+    "⏳ Reminder:\n\n"
+    "We noticed you haven't completed your registration.\n\n"
+    "If you are still interested, complete your payment today.\n\n"
+    "Limited slots available."
+)
+
+AFTER_FORM_MESSAGE = (
+    "✅ Thank you for submitting your details\n\n"
+    "💸 Earning Details:\n"
+    "Chat ₹5/min | Call ₹10/min\n\n"
+    "📊 Daily Example:\n"
+    "Earn ₹500–₹1000/day\n\n"
+    "We will review your profile shortly."
+)
+
+# =========================
+# LOGGING
+# =========================
+logging.basicConfig(level=logging.INFO)
 
 # =========================
 # STATES
 # =========================
-NAME, AGE, GENDER, CITY, EXPERIENCE, TIME, CONFIRM = range(7)
+NAME, AGE, GENDER, EXPERIENCE = range(4)
 
 # =========================
-# START
+# FILE FUNCTIONS
+# =========================
+def load_leads():
+    if not os.path.exists(LEADS_FILE):
+        return []
+    try:
+        with open(LEADS_FILE, "r") as f:
+            return json.load(f)
+    except:
+        return []
+
+def save_leads(data):
+    with open(LEADS_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+def add_lead(lead):
+    data = load_leads()
+    data.append(lead)
+    save_leads(data)
+
+def update_status(chat_id, status):
+    data = load_leads()
+    for lead in data:
+        if str(lead["chat_id"]) == str(chat_id):
+            lead["status"] = status
+    save_leads(data)
+
+# =========================
+# USER FLOW
 # =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "👋 Welcome to TalkMitra\n\n"
-        "Process start karne ke liye kuch details deni hogi.\n\n"
-        "📝 Aapka naam kya hai?"
-    )
+    await update.message.reply_text("Enter your full name:")
     return NAME
 
-# =========================
-# NAME
-# =========================
 async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["name"] = update.message.text
-    await update.message.reply_text("🎂 Aapki age kya hai?")
+    await update.message.reply_text("Enter your age:")
     return AGE
 
-# =========================
-# AGE
-# =========================
 async def get_age(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["age"] = update.message.text
-
-    keyboard = [["Male", "Female"], ["Other"]]
     await update.message.reply_text(
-        "👤 Aapka gender select kare:",
-        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True),
+        "Select gender:",
+        reply_markup=ReplyKeyboardMarkup(
+            [["Male", "Female"], ["Other"]],
+            one_time_keyboard=True,
+            resize_keyboard=True,
+        ),
     )
     return GENDER
 
-# =========================
-# GENDER
-# =========================
 async def get_gender(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["gender"] = update.message.text
-    await update.message.reply_text("🏙️ Aap kis city se ho?", reply_markup=ReplyKeyboardRemove())
-    return CITY
-
-# =========================
-# CITY
-# =========================
-async def get_city(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["city"] = update.message.text
-
-    keyboard = [["Yes", "No"]]
     await update.message.reply_text(
-        "💬 Kya aapko chatting/calling ka experience hai?",
-        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True),
+        "Experience?",
+        reply_markup=ReplyKeyboardMarkup(
+            [["Fresher", "Experienced"]],
+            one_time_keyboard=True,
+            resize_keyboard=True,
+        ),
     )
     return EXPERIENCE
 
-# =========================
-# EXPERIENCE
-# =========================
 async def get_experience(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["experience"] = update.message.text
 
-    keyboard = [["1 Hour", "2 Hours"], ["3 Hours", "4+ Hours"]]
-    await update.message.reply_text(
-        "⏰ Aap daily kitna time de sakte ho?",
-        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True),
-    )
-    return TIME
+    chat_id = update.effective_chat.id
+    user = update.effective_user
 
-# =========================
-# TIME + EARNING
-# =========================
-async def get_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["time"] = update.message.text
+    lead = {
+        "name": context.user_data["name"],
+        "age": context.user_data["age"],
+        "gender": context.user_data["gender"],
+        "experience": context.user_data["experience"],
+        "chat_id": chat_id,
+        "username": user.username,
+        "status": "new",
+    }
 
-    await update.message.reply_text(
-        "💸 Earning Details\n\n"
-        "💬 Chat: ₹5 per minute\n"
-        "📞 Voice Call: ₹10 per minute\n\n"
-        "📌 Example:\n"
-        "10 min chat = ₹50\n"
-        "10 min call = ₹100\n"
-        "Total = ₹150\n\n"
-        "📅 Monthly potential:\n"
-        "₹150/day = ₹4500\n"
-        "₹250/day = ₹7500\n"
-        "₹350/day = ₹10500\n\n"
-        "⚠️ Limited slots only\n\n"
-        "✅ Continue karna chahte ho?"
-    )
+    add_lead(lead)
 
-    keyboard = [["Yes", "No"]]
-    await update.message.reply_text(
-        "Select option:",
-        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True),
-    )
-    return CONFIRM
+    admin_msg = f"""
+🔥 New Lead
 
-# =========================
-# FINAL
-# =========================
-async def confirm_process(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.text.lower() == "no":
-        await update.message.reply_text("Thik hai 👍", reply_markup=ReplyKeyboardRemove())
-        return ConversationHandler.END
+Name: {lead['name']}
+Age: {lead['age']}
+Gender: {lead['gender']}
+Chat ID: {chat_id}
+Status: new
+"""
 
-    # USER SUMMARY
-    await update.message.reply_text(
-        "✅ Thank you! Aapka profile review me hai.\n\n"
-        "Agar select hue to next step bheja jayega.",
-        reply_markup=ReplyKeyboardRemove()
-    )
+    await context.bot.send_message(chat_id=ADMIN_ID, text=admin_msg)
+    await update.message.reply_text(AFTER_FORM_MESSAGE, reply_markup=ReplyKeyboardRemove())
 
-    # ADMIN MESSAGE
-    await context.bot.send_message(
-        chat_id=ADMIN_ID,
-        text=(
-            "🚀 New Lead\n\n"
-            f"Name: {context.user_data.get('name')}\n"
-            f"Age: {context.user_data.get('age')}\n"
-            f"Gender: {context.user_data.get('gender')}\n"
-            f"City: {context.user_data.get('city')}\n"
-            f"Experience: {context.user_data.get('experience')}\n"
-            f"Time: {context.user_data.get('time')}\n"
-            f"User ID: {update.effective_user.id}"
-        )
-    )
-
+    context.user_data.clear()
     return ConversationHandler.END
 
 # =========================
-# CANCEL
+# ADMIN COMMANDS
 # =========================
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Cancelled ❌", reply_markup=ReplyKeyboardRemove())
-    return ConversationHandler.END
+def is_admin(user_id):
+    return user_id == ADMIN_ID
+
+async def leads(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        return
+
+    data = load_leads()
+    if not data:
+        await update.message.reply_text("No leads.")
+        return
+
+    text = "Leads:\n\n"
+    for l in data:
+        text += f"{l['name']} | {l['chat_id']} | {l['status']}\n"
+
+    await update.message.reply_text(text)
+
+async def sendpayment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        return
+
+    chat_id = int(context.args[0])
+    await context.bot.send_message(chat_id=chat_id, text=PAYMENT_MESSAGE)
+    update_status(chat_id, "payment_sent")
+    await update.message.reply_text("Payment sent")
+
+async def sendselect(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        return
+
+    chat_id = int(context.args[0])
+    await context.bot.send_message(chat_id=chat_id, text=SELECT_MESSAGE)
+    update_status(chat_id, "selected")
+    await update.message.reply_text("Selected msg sent")
+
+async def sendreminder(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        return
+
+    chat_id = int(context.args[0])
+    await context.bot.send_message(chat_id=chat_id, text=REMINDER_MESSAGE)
+    await update.message.reply_text("Reminder sent")
+
+async def sendcustom(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        return
+
+    chat_id = int(context.args[0])
+    msg = " ".join(context.args[1:])
+    await context.bot.send_message(chat_id=chat_id, text=msg)
+    await update.message.reply_text("Custom sent")
 
 # =========================
 # MAIN
 # =========================
 def main():
-    app = ApplicationBuilder().token(TOKEN).build()
+    app = Application.builder().token(BOT_TOKEN).build()
 
     conv = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
@@ -185,17 +233,19 @@ def main():
             NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name)],
             AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_age)],
             GENDER: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_gender)],
-            CITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_city)],
             EXPERIENCE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_experience)],
-            TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_time)],
-            CONFIRM: [MessageHandler(filters.TEXT & ~filters.COMMAND, confirm_process)],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[],
     )
 
     app.add_handler(conv)
 
-    print("Bot running...")
+    app.add_handler(CommandHandler("leads", leads))
+    app.add_handler(CommandHandler("sendpayment", sendpayment))
+    app.add_handler(CommandHandler("sendselect", sendselect))
+    app.add_handler(CommandHandler("sendreminder", sendreminder))
+    app.add_handler(CommandHandler("sendcustom", sendcustom))
+
     app.run_polling()
 
 if __name__ == "__main__":
